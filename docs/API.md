@@ -66,5 +66,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### Notes
 
 - Image files must use content type starting with `image/`.
-- `predict` uses an ONNX ResNet50 model. Ensure model file exists at `artifacts/resnet50_best_20251011_163346.onnx`.
+- `predict` uses an ONNX ResNet50 model. If the model doesn't exist locally, it will be automatically downloaded from S3 if configured.
 - `analyze` uses Gemini via `GOOGLE_API_KEY`.
+- All responses include a unique `request_id` and `timestamp`.
+- If S3 is configured (via `S3_BUCKET_NAME` env var), all images and predictions are automatically stored in S3 under `predictions/{request_id}/`.
+- S3 environment variables: `S3_BUCKET_NAME`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.

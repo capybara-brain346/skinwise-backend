@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import numpy as np
 import onnxruntime as ort
@@ -9,6 +10,9 @@ from pathlib import Path
 from google import genai
 from pydantic import BaseModel
 import json
+import uuid
+from datetime import datetime
+from s3 import S3Service
 
 load_dotenv()
 
@@ -26,12 +30,19 @@ tags_metadata = [
     {"name": "Analysis", "description": "Detailed AI analysis endpoints."},
 ]
 
-# Recreate app with tags metadata without altering other settings
 app = FastAPI(
     title="SkinWise API",
     description="Skin disease classification API using ResNet50",
     version="1.0.0",
     openapi_tags=tags_metadata,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 CLASSES = [
@@ -62,12 +73,50 @@ CLASSES = [
 MODEL_PATH = Path("artifacts/resnet50_best_20251011_163346.onnx")
 session = None
 gemini_client = None
+s3_service = None
+
+
+def init_s3_service():
+    global s3_service
+    try:
+        s3_service = S3Service()
+        print("S3 service initialized successfully")
+        return s3_service
+    except ValueError as e:
+        print(f"S3 service not configured: {e}")
+        return None
+    except Exception as e:
+        print(f"Warning: Could not initialize S3 service: {e}")
+        return None
 
 
 def load_model():
-    global session
+    global session, s3_service
+
+    artifacts_dir = Path("artifacts")
+    artifacts_dir.mkdir(exist_ok=True)
+
     if not MODEL_PATH.exists():
-        raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+        print(f"Model not found at {MODEL_PATH}")
+
+        if s3_service is not None:
+            try:
+                print("Attempting to download latest model from S3...")
+                downloaded_path = s3_service.download_latest_model(
+                    model_prefix="models/", local_path=MODEL_PATH
+                )
+                print(f"Model downloaded successfully to {downloaded_path}")
+            except Exception as e:
+                raise FileNotFoundError(
+                    f"Model file not found at {MODEL_PATH} and could not download from S3: {e}"
+                )
+        else:
+            raise FileNotFoundError(
+                f"Model file not found at {MODEL_PATH} and S3 service not configured"
+            )
+    else:
+        print(f"Model already exists at {MODEL_PATH}, skipping download")
+
     session = ort.InferenceSession(str(MODEL_PATH))
     return session
 
@@ -107,6 +156,8 @@ def softmax(x):
 
 
 class DetailedAnalysis(BaseModel):
+    request_id: str
+    timestamp: str
     condition_name: str
     severity_level: str
     confidence_level: str
@@ -121,6 +172,11 @@ class DetailedAnalysis(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
+    try:
+        init_s3_service()
+    except Exception as e:
+        print(f"Warning: Could not initialize S3 service: {e}")
+
     try:
         load_model()
         print(f"Model loaded successfully from {MODEL_PATH}")
@@ -156,15 +212,17 @@ async def root():
     "/health",
     tags=["Health"],
     summary="Health check",
-    description="Reports model and Gemini availability.",
+    description="Reports model, Gemini, and S3 availability.",
 )
 async def health_check():
     model_loaded = session is not None
     gemini_loaded = gemini_client is not None
+    s3_configured = s3_service is not None
     return {
         "status": "healthy" if model_loaded else "model not loaded",
         "model_loaded": model_loaded,
         "gemini_loaded": gemini_loaded,
+        "s3_configured": s3_configured,
     }
 
 
@@ -194,6 +252,9 @@ async def predict(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
+    request_id = str(uuid.uuid4())
+    timestamp = datetime.utcnow().isoformat()
+
     try:
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
@@ -217,13 +278,34 @@ async def predict(file: UploadFile = File(...)):
 
         top_prediction = results[0]
 
-        return {
+        response_data = {
             "success": True,
+            "request_id": request_id,
+            "timestamp": timestamp,
             "prediction": top_prediction["class"],
             "confidence": top_prediction["confidence"],
             "top_5": results[:5],
             "all_predictions": results,
         }
+
+        if s3_service is not None:
+            try:
+                image_filename = (
+                    f"input_image_{file.filename}"
+                    if file.filename
+                    else "input_image.jpg"
+                )
+                s3_service.upload_image(contents, request_id, image_filename)
+
+                s3_service.upload_prediction(response_data, request_id)
+
+                print(
+                    f"Successfully uploaded image and prediction data for request {request_id}"
+                )
+            except Exception as s3_error:
+                print(f"Warning: Could not upload to S3: {s3_error}")
+
+        return response_data
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
@@ -245,6 +327,9 @@ async def analyze_with_gemini(file: UploadFile = File(...)):
 
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
+
+    request_id = str(uuid.uuid4())
+    timestamp = datetime.utcnow().isoformat()
 
     try:
         contents = await file.read()
@@ -285,7 +370,29 @@ Be thorough, professional, and ensure all fields are populated with relevant inf
 
         analysis_data = json.loads(response_text)
 
-        return DetailedAnalysis(**analysis_data)
+        analysis_data["request_id"] = request_id
+        analysis_data["timestamp"] = timestamp
+
+        detailed_analysis = DetailedAnalysis(**analysis_data)
+
+        if s3_service is not None:
+            try:
+                image_filename = (
+                    f"input_image_{file.filename}"
+                    if file.filename
+                    else "input_image.jpg"
+                )
+                s3_service.upload_image(contents, request_id, image_filename)
+
+                s3_service.upload_analysis(analysis_data, request_id)
+
+                print(
+                    f"Successfully uploaded image and analysis data for request {request_id}"
+                )
+            except Exception as s3_error:
+                print(f"Warning: Could not upload to S3: {s3_error}")
+
+        return detailed_analysis
 
     except json.JSONDecodeError as e:
         raise HTTPException(

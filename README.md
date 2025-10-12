@@ -51,13 +51,26 @@ uv sync
 export GOOGLE_API_KEY="your_api_key_here"
 ```
 
+4. (Optional) Set up AWS S3 credentials for model storage and prediction data persistence:
+
+```bash
+export S3_BUCKET_NAME="your-s3-bucket-name"
+export AWS_REGION="us-east-1"
+export AWS_ACCESS_KEY_ID="your_aws_access_key_id"
+export AWS_SECRET_ACCESS_KEY="your_aws_secret_access_key"
+```
+
 Or create a `.env` file in the project root:
 
 ```
 GOOGLE_API_KEY=your_api_key_here
+S3_BUCKET_NAME=your-s3-bucket-name
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
 ```
 
-4. Run the server:
+5. Run the server:
 
 ```bash
 uv run python main.py
@@ -98,6 +111,8 @@ Upload an image for classification using the ONNX ResNet50 model.
 ```json
 {
   "success": true,
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2024-01-01T12:00:00.000000",
   "prediction": "Acne",
   "confidence": 0.95,
   "top_5": [
@@ -110,6 +125,8 @@ Upload an image for classification using the ONNX ResNet50 model.
   "all_predictions": [...]
 }
 ```
+
+**Note:** If S3 is configured, the image and prediction data are automatically stored in S3 under `predictions/{request_id}/`.
 
 ### POST /analyze
 
@@ -125,6 +142,8 @@ Upload an image for detailed AI-powered analysis using Gemini 2.0 Flash. Require
 
 ```json
 {
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2024-01-01T12:00:00.000000",
   "condition_name": "Acne Vulgaris",
   "severity_level": "Moderate",
   "confidence_level": "High",
@@ -149,6 +168,8 @@ Upload an image for detailed AI-powered analysis using Gemini 2.0 Flash. Require
   "disclaimer": "This is an AI-powered analysis and should not replace professional medical advice. Always consult with a qualified healthcare provider for accurate diagnosis and treatment."
 }
 ```
+
+**Note:** If S3 is configured, the image and analysis data are automatically stored in S3 under `predictions/{request_id}/`.
 
 ## Testing with curl
 
@@ -200,6 +221,63 @@ Once the server is running, visit:
 
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+## S3 Integration
+
+The application includes an S3 service (`s3.py`) that provides automatic cloud storage capabilities.
+
+### Features
+
+1. **Automatic Model Download**: At startup, if the model doesn't exist locally in the `artifacts/` directory, the latest ONNX model is automatically downloaded from S3 (sorted by timestamp)
+2. **Automatic Image Storage**: Every prediction and analysis request automatically uploads the user's image to S3
+3. **Automatic Prediction Storage**: All prediction results are automatically stored as JSON files in S3
+4. **Automatic Analysis Storage**: All detailed AI analysis results are automatically stored in S3
+
+All data is organized by unique request ID for easy retrieval and management.
+
+### Usage Example
+
+```python
+from s3 import S3Service
+import uuid
+
+s3_service = S3Service()
+
+request_id = str(uuid.uuid4())
+
+s3_service.download_latest_model(model_prefix="models/")
+
+with open("image.jpg", "rb") as f:
+    image_data = f.read()
+    s3_service.upload_image(image_data, request_id)
+
+prediction_data = {
+    "prediction": "Acne",
+    "confidence": 0.95,
+    "timestamp": "2024-01-01T12:00:00Z"
+}
+s3_service.upload_prediction(prediction_data, request_id)
+
+retrieved_prediction = s3_service.get_prediction(request_id)
+
+request_ids = s3_service.list_predictions()
+
+s3_service.delete_prediction(request_id)
+```
+
+### S3 Bucket Structure
+
+```
+your-bucket/
+├── models/
+│   ├── resnet50_v1.onnx
+│   └── resnet50_v2.onnx
+└── predictions/
+    └── {request_id}/
+        ├── input_image.jpg
+        ├── prediction.json
+        └── analysis.json
+```
 
 ## Model Requirements
 
