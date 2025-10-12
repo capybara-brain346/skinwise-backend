@@ -1,0 +1,15 @@
+[project]
+name = "skinwise-backend"
+version = "0.1.0"
+description = "Skin disease classification API using ONNX ResNet50 model"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.118.3",
+    "onnxruntime>=1.19.0",
+    "pillow>=10.0.0",
+    "numpy>=1.24.0",
+    "python-multipart>=0.0.9",
+    "google-genai>=1.43.0",
+    "python-dotenv>=1.1.1",
+]
