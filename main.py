@@ -13,14 +13,9 @@ import json
 import uuid
 from datetime import datetime
 from s3 import S3Service
+from contextlib import asynccontextmanager
 
 load_dotenv()
-
-app = FastAPI(
-    title="SkinWise API",
-    description="Skin disease classification API using ResNet50",
-    version="1.0.0",
-)
 
 tags_metadata = [
     {"name": "Info", "description": "General API information."},
@@ -30,11 +25,35 @@ tags_metadata = [
     {"name": "Analysis", "description": "Detailed AI analysis endpoints."},
 ]
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        init_s3_service()
+    except Exception as e:
+        print(f"Warning: Could not initialize S3 service: {e}")
+
+    try:
+        load_model()
+        print(f"Model loaded successfully from {MODEL_PATH}")
+    except Exception as e:
+        print(f"Warning: Could not load model: {e}")
+
+    try:
+        load_gemini()
+        print("Gemini model loaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not load Gemini model: {e}")
+
+    yield
+
+
 app = FastAPI(
     title="SkinWise API",
     description="Skin disease classification API using ResNet50",
     version="1.0.0",
     openapi_tags=tags_metadata,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -154,26 +173,6 @@ class DetailedAnalysis(BaseModel):
     when_to_see_doctor: str
     additional_notes: str
     disclaimer: str
-
-
-@app.on_event("startup")
-async def startup_event():
-    try:
-        init_s3_service()
-    except Exception as e:
-        print(f"Warning: Could not initialize S3 service: {e}")
-
-    try:
-        load_model()
-        print(f"Model loaded successfully from {MODEL_PATH}")
-    except Exception as e:
-        print(f"Warning: Could not load model: {e}")
-
-    try:
-        load_gemini()
-        print("Gemini model loaded successfully")
-    except Exception as e:
-        print(f"Warning: Could not load Gemini model: {e}")
 
 
 @app.get(
