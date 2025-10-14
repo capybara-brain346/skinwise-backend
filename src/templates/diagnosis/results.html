@@ -1,0 +1,35 @@
+{% extends "diagnosis/base.html" %}
+
+{% block content %}
+<h2>Prediction Result</h2>
+<div class="card">
+    <div><strong>Prediction:</strong> {{ result.prediction }}</div>
+    <div><strong>Confidence:</strong> {{ result.confidence|floatformat:3 }}</div>
+    <div class="muted">Request: {{ result.request_id }} • {{ result.timestamp }}</div>
+    <h3 style="margin-top: 12px;">Top 5</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Class</th>
+                <th>Confidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in result.top_5 %}
+            <tr>
+                <td>{{ r.class }}</td>
+                <td>{{ r.confidence|floatformat:4 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div style="margin-top: 16px; display:flex; gap:8px;">
+        <a class="btn" href="/">Back</a>
+        <form action="/predict.pdf" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="data" value='{{ result_json|escape }}' />
+            <button class="btn" type="submit">Download PDF</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

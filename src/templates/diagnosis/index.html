@@ -1,0 +1,37 @@
+{% extends "diagnosis/base.html" %}
+
+{% block content %}
+<h2>Classify Skin Condition</h2>
+<div class="grid">
+    <div class="card">
+        <h3>Prediction</h3>
+        <form action="/predict" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="file" accept="image/*" onchange="previewFile(this, 'predPreview')" required />
+            <img id="predPreview" alt="Preview"
+                style="max-width: 100%; border-radius: 8px; display:block; margin-top:8px;" />
+            <div style="margin-top: 8px;">
+                <button class="btn" type="submit">Run Prediction</button>
+            </div>
+        </form>
+    </div>
+    <div class="card">
+        <h3>Detailed Analysis</h3>
+        <form action="/analyze" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="file" accept="image/*" onchange="previewFile(this, 'anaPreview')" required />
+            <img id="anaPreview" alt="Preview"
+                style="max-width: 100%; border-radius: 8px; display:block; margin-top:8px;" />
+            <div style="margin-top: 8px;">
+                <button class="btn secondary" type="submit">Run Analysis</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="card" style="margin-top: 16px;">
+    <h3>Supported Classes</h3>
+    <div>
+        {% for c in classes %}<span class="tag" style="margin: 2px 4px 2px 0;">{{ c }}</span>{% endfor %}
+    </div>
+</div>
+{% endblock %}

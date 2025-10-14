@@ -1,0 +1,50 @@
+{% extends "diagnosis/base.html" %}
+
+{% block content %}
+<h2>Detailed Analysis</h2>
+<div class="card">
+    <div><strong>Condition:</strong> {{ analysis.condition_name }}</div>
+    <div><strong>Severity:</strong> {{ analysis.severity_level }}</div>
+    <div><strong>Confidence:</strong> {{ analysis.confidence_level }}</div>
+    <div class="muted">Request: {{ analysis.request_id }} • {{ analysis.timestamp }}</div>
+
+    <h3 style="margin-top: 12px;">Visible Symptoms</h3>
+    <ul>
+        {% for s in analysis.visible_symptoms %}
+        <li>{{ s }}</li>
+        {% endfor %}
+    </ul>
+
+    <h3>Possible Causes</h3>
+    <ul>
+        {% for c in analysis.possible_causes %}
+        <li>{{ c }}</li>
+        {% endfor %}
+    </ul>
+
+    <h3>Recommended Actions</h3>
+    <ul>
+        {% for a in analysis.recommended_actions %}
+        <li>{{ a }}</li>
+        {% endfor %}
+    </ul>
+
+    <h3>When to See a Doctor</h3>
+    <p>{{ analysis.when_to_see_doctor }}</p>
+
+    <h3>Additional Notes</h3>
+    <p>{{ analysis.additional_notes }}</p>
+
+    <h3>Disclaimer</h3>
+    <p class="muted">{{ analysis.disclaimer }}</p>
+
+    <div style="margin-top: 16px; display:flex; gap:8px;">
+        <a class="btn" href="/">Back</a>
+        <form action="/analyze.pdf" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="data" value='{{ analysis_json|escape }}' />
+            <button class="btn" type="submit">Download PDF</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

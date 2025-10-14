@@ -13,4 +13,7 @@ dependencies = [
     "google-genai>=1.43.0",
     "python-dotenv>=1.1.1",
     "boto3>=1.40.50",
+    "django>=5.2.7",
+    "pycairo>=1.28.0",
+    "xhtml2pdf>=0.2.17",
 ]
