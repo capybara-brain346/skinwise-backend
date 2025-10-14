@@ -47,30 +47,16 @@ app.add_middleware(
 
 CLASSES = [
     "Acne",
-    "Actinic_Keratosis",
-    "Benign_tumors",
-    "Bullous",
-    "Candidiasis",
-    "DrugEruption",
     "Eczema",
-    "Infestations_Bites",
-    "Lichen",
-    "Lupus",
-    "Moles",
     "Psoriasis",
-    "Rosacea",
-    "Seborrh_Keratoses",
     "SkinCancer",
-    "Sun_Sunlight_Damage",
     "Tinea",
     "Unknown_Normal",
-    "Vascular_Tumors",
-    "Vasculitis",
     "Vitiligo",
     "Warts",
 ]
 
-MODEL_PATH = Path("artifacts/resnet50_best_20251011_163346.onnx")
+MODEL_PATH = Path("artifacts/resnet50_best_20251014_074535.onnx")
 session = None
 gemini_client = None
 s3_service = None
