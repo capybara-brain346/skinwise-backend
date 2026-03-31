@@ -340,7 +340,7 @@ Please provide your analysis in the following JSON format (respond ONLY with val
 Be thorough, professional, and ensure all fields are populated with relevant information. If you're uncertain about something, mention it in the confidence_level and additional_notes."""
 
         response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash-exp", contents=[prompt, image]
+            model="gemini-3-flash-preview", contents=[prompt, image]
         )
 
         response_text = response.text.strip()
@@ -393,4 +393,4 @@ Be thorough, professional, and ensure all fields are populated with relevant inf
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

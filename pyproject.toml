@@ -14,3 +14,10 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "boto3>=1.40.50",
 ]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main", "s3"]
