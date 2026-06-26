@@ -13,6 +13,7 @@ def load_model():
     if not MODEL_PATH.exists():
         print(f"Model not found at {MODEL_PATH}")
 
+        s3_service = get_s3_service()
         if s3_service is not None:
             try:
                 print("Attempting to download latest model from S3...")
