@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 # uv configuration: compile bytecode and copy (don't symlink) installed packages

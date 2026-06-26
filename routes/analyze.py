@@ -1,5 +1,5 @@
 from fastapi import APIRouter, File, Form, UploadFile, HTTPException
-from config.llm import load_gemini
+from config.llm import load_openrouter
 import io
 from PIL import Image
 from pydantic import BaseModel
@@ -7,7 +7,7 @@ from utils.analyzer import image_analyzer
 
 router = APIRouter()
 
-gemini_client = load_gemini()
+openrouter_client = load_openrouter()
 
 class DetailedAnalysis(BaseModel):
     request_id: str
@@ -25,10 +25,10 @@ class DetailedAnalysis(BaseModel):
 
 @router.post("/analyze", response_model=DetailedAnalysis, tags=["Analysis"], summary="Detailed AI analysis", description="Performs detailed analysis using Gemini and returns comprehensive insights.")
 async def analyze_with_gemini(file: UploadFile = File(...), language: str = Form("English")):
-    if gemini_client is None:
+    if openrouter_client is None:
         raise HTTPException(
             status_code=503,
-            detail="Gemini AI not configured. Please set GOOGLE_API_KEY environment variable.",
+            detail="OpenRouter not configured. Please set OPENROUTER_API_KEY environment variable.",
         )
 
     if not file.content_type.startswith("image/"):

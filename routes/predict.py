@@ -4,8 +4,6 @@ from PIL import Image
 import io
 import uuid
 from datetime import datetime
-from contextlib import asynccontextmanager
-from config.cnn import load_model
 from utils.preprocess import preprocess_image
 from config.cnn import load_model
 import numpy as np
@@ -75,15 +73,20 @@ async def predict(file: UploadFile = File(...)):
             "timestamp": timestamp,
             "prediction": top_prediction["class"],
             "confidence": top_prediction["confidence"],
+            "top_5": results[:5],
+            "all_predictions": results,
             "all_confidences": results,
         }
 
         if s3_service:
             try:
-                image_bytes = await file.read()
-                file_key = f"uploads/{request_id}_{file.filename}"
-                s3_service.upload_bytes(file_key, image_bytes, "image/jpeg")
-                response_data["s3_key"] = file_key
+                image_filename = file.filename or "input_image.jpg"
+                response_data["s3_image_url"] = s3_service.upload_image(
+                    contents, request_id, image_filename
+                )
+                response_data["s3_prediction_url"] = s3_service.upload_prediction(
+                    response_data, request_id
+                )
             except Exception as e:
                 print(f"Warning: Could not upload to S3: {e}")
 

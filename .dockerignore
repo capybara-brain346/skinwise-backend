@@ -1,0 +1,14 @@
+.venv
+.git
+.gitignore
+.env
+__pycache__
+**/__pycache__
+*.pyc
+skinwise_backend.egg-info
+.agents
+.codex
+docs
+README.md
+# Large model artifact is fetched from S3 at startup; keep it out of the image.
+artifacts

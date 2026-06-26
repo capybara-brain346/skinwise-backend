@@ -5,7 +5,7 @@ import onnxruntime as ort
 MODEL_PATH = Path("artifacts/resnet50_best_20251014_074535.onnx")
 
 def load_model():
-    global session, s3_service
+    global session
 
     artifacts_dir = Path("artifacts")
     artifacts_dir.mkdir(exist_ok=True)

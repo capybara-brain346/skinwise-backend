@@ -239,5 +239,7 @@ class S3Service:
             raise Exception(f"Error deleting prediction from S3: {str(e)}")
 
 
-def get_s3_service() -> S3Service:
+def get_s3_service() -> Optional[S3Service]:
+    if not os.getenv("S3_BUCKET_NAME"):
+        return None
     return S3Service()

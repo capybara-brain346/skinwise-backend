@@ -1,13 +1,15 @@
 from fastapi import HTTPException
-from config.llm import load_gemini
+from config.llm import load_openrouter
 from s3 import get_s3_service
 import uuid
+import os
+import base64
+import io as _io
 from datetime import datetime
 import json
-from PIL import Image
 from pydantic import BaseModel
 
-gemini_client = load_gemini()
+openrouter_client = load_openrouter()
 s3_service = get_s3_service()
 
 class DetailedAnalysis(BaseModel):
@@ -46,8 +48,7 @@ async def image_analyzer(file, image, contents, language: str = "English"):
         else ""
     )
 
-    try:
-        prompt = f"""You are an expert dermatologist AI assistant. Analyze this skin condition image and provide a detailed, structured assessment.
+    prompt = f"""You are an expert dermatologist AI assistant. Analyze this skin condition image and provide a detailed, structured assessment.
 
 Please provide your analysis in the following JSON format (respond ONLY with valid JSON, no additional text):
 
@@ -66,11 +67,30 @@ Please provide your analysis in the following JSON format (respond ONLY with val
 
 Be thorough, professional, and ensure all fields are populated with relevant information. If you're uncertain about something, mention it in the confidence_level and additional_notes.{language_instruction}"""
 
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash", contents=[prompt, image]
+    buffered = _io.BytesIO()
+    image.save(buffered, format="JPEG")
+    img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+    model = os.getenv("OPENROUTER_MODEL", "google/gemini-2.5-flash")
+
+    try:
+        response = openrouter_client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"},
+                        },
+                    ],
+                }
+            ],
         )
 
-        response_text = response.text.strip()
+        response_text = response.choices[0].message.content.strip()
 
         if response_text.startswith("```json"):
             response_text = response_text[7:]
@@ -95,12 +115,8 @@ Be thorough, professional, and ensure all fields are populated with relevant inf
                     else "input_image.jpg"
                 )
                 s3_service.upload_image(contents, request_id, image_filename)
-
                 s3_service.upload_analysis(analysis_data, request_id)
-
-                print(
-                    f"Successfully uploaded image and analysis data for request {request_id}"
-                )
+                print(f"Successfully uploaded image and analysis data for request {request_id}")
             except Exception as s3_error:
                 print(f"Warning: Could not upload to S3: {s3_error}")
 
@@ -109,5 +125,5 @@ Be thorough, professional, and ensure all fields are populated with relevant inf
     except json.JSONDecodeError as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Error parsing Gemini response: {str(e)}. Response: {response_text[:200]}",
+            detail=f"Error parsing OpenRouter response: {str(e)}. Response: {response_text[:200]}",
         )
