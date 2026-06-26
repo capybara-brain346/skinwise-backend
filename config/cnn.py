@@ -1,4 +1,4 @@
-from s3 import S3Service
+from s3 import get_s3_service
 from pathlib import Path
 import onnxruntime as ort
 
