@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile, HTTPException
 from config.llm import load_gemini
 import io
 from PIL import Image
@@ -24,7 +24,7 @@ class DetailedAnalysis(BaseModel):
     disclaimer: str
 
 @router.post("/analyze", response_model=DetailedAnalysis, tags=["Analysis"], summary="Detailed AI analysis", description="Performs detailed analysis using Gemini and returns comprehensive insights.")
-async def analyze_with_gemini(file: UploadFile = File(...)):
+async def analyze_with_gemini(file: UploadFile = File(...), language: str = Form("English")):
     if gemini_client is None:
         raise HTTPException(
             status_code=503,
@@ -38,7 +38,7 @@ async def analyze_with_gemini(file: UploadFile = File(...)):
     image = Image.open(io.BytesIO(contents))
 
     try:
-        return await image_analyzer(file, image)
+        return await image_analyzer(file, image, contents, language)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error analyzing image with Gemini: {str(e)}"

@@ -24,16 +24,34 @@ class DetailedAnalysis(BaseModel):
     additional_notes: str
     disclaimer: str
 
-request_id = str(uuid.uuid4())
-timestamp = datetime.utcnow().isoformat()
+LANGUAGE_INSTRUCTIONS = {
+    "Hindi": "हिंदी",
+    "Marathi": "मराठी",
+    "Tamil": "தமிழ்",
+    "English": "English",
+}
 
-async def image_analyzer(file, image):
+async def image_analyzer(file, image, contents, language: str = "English"):
+    request_id = str(uuid.uuid4())
+    timestamp = datetime.utcnow().isoformat()
+
+    lang_name = LANGUAGE_INSTRUCTIONS.get(language, "English")
+    language_instruction = (
+        f"\n\nIMPORTANT: You MUST write ALL text values in your JSON response in {lang_name} language. "
+        f"This includes condition_name, severity_level, confidence_level, all items in visible_symptoms, "
+        f"affected_area_description, all items in possible_causes, all items in recommended_actions, "
+        f"when_to_see_doctor, additional_notes, and disclaimer. "
+        f"Only respond in {lang_name}."
+        if language != "English"
+        else ""
+    )
+
     try:
-        prompt = """You are an expert dermatologist AI assistant. Analyze this skin condition image and provide a detailed, structured assessment.
+        prompt = f"""You are an expert dermatologist AI assistant. Analyze this skin condition image and provide a detailed, structured assessment.
 
 Please provide your analysis in the following JSON format (respond ONLY with valid JSON, no additional text):
 
-{
+{{
   "condition_name": "The most likely skin condition name",
   "severity_level": "Mild/Moderate/Severe/Critical",
   "confidence_level": "Low/Medium/High",
@@ -44,9 +62,9 @@ Please provide your analysis in the following JSON format (respond ONLY with val
   "when_to_see_doctor": "Specific guidance on when immediate medical attention is needed",
   "additional_notes": "Any other relevant observations or information",
   "disclaimer": "Important disclaimer about AI limitations and need for professional medical advice"
-}
+}}
 
-Be thorough, professional, and ensure all fields are populated with relevant information. If you're uncertain about something, mention it in the confidence_level and additional_notes."""
+Be thorough, professional, and ensure all fields are populated with relevant information. If you're uncertain about something, mention it in the confidence_level and additional_notes.{language_instruction}"""
 
         response = gemini_client.models.generate_content(
             model="gemini-2.5-flash", contents=[prompt, image]
