@@ -9,15 +9,13 @@ WORKDIR /app
 
 # Install dependencies first (cached layer), using the locked versions
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
+RUN uv sync --frozen --no-install-project --no-dev
 
 # Copy the application source
 COPY . .
 
 # Install the project itself
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 # Make the venv the default environment
 ENV PATH="/app/.venv/bin:$PATH"
