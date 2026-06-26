@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from s3 import S3Service
 from contextlib import asynccontextmanager
 from config.cnn import load_model
-from config.llm import load_gemini
+from config.llm import load_openrouter
 from routes import predict, classes, health, root, analyze
 
 load_dotenv()
